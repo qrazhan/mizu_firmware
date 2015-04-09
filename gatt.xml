@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration>
+	
+	<!-- 1800: org.bluetooth.service.generic_access -->
+    <service type="primary" uuid="1800" id="generic_access" advertise="true">
+      <description>Generic Access Profile</description>
+
+	  <!-- 2A00: org.bluetooth.characteristic.gap.device_name -->
+      <characteristic uuid="2a00" id="c_device_name">
+		<description>Device Name</description>
+		<value>FUCKING FLIPPER</value>
+        <properties read="true" const="true" />
+      </characteristic>
+
+	  <!-- 2A01: org.bluetooth.characteristic.gap.appearance -->
+      <characteristic uuid="2a01" id="c_appearance">
+		<description>Appearance</description>
+		<!-- 128: Generic Thermometer, Generic category -->
+		<value type="hex">0300</value>
+        <properties read="true" const="true" />
+      </characteristic>
+    </service>
+	
+	<!-- 180A: org.bluetooth.service.generic_access -->
+	<service type="primary" uuid="180A" id="device_information" advertise="true">
+		<description>Device Information</description>
+		
+		<!-- 2A27: org.bluetooth.characteristic.hardware_revision_string -->
+		<characteristic uuid="2A27" id="c_hardware_revision">
+			<description>Hardware Revision</description>
+            <value type="hex">1.0</value>
+			<properties read="true" const="true" />
+        </characteristic>
+		
+		<!-- 2A28: org.bluetooth.characteristic.software_revision_string -->
+        <characteristic uuid="2A28" id="c_software_revision">
+			<description>Software Revision</description>
+			<value type="hex">1.0</value>
+            <properties read="true" const="true" />
+        </characteristic>
+		
+		<!-- 2A29: org.bluetooth.characteristic.manufacturer_name_string -->
+        <characteristic uuid="2A29" id="c_manufacturer_name">
+			<description>Manufacturer Name</description>
+			<value type="utf-8">UCSF Biodesign Laboratory</value>
+            <properties read="true" const="true" />
+        </characteristic>
+    </service>
+	
+	<!-- Custom GATT Service for Datalogger (custom generated UUIDs) -->
+	<service type="primary" uuid="c84fcc88-8610-4874-85c6-fe7483abe0c1" id="datalogger_service" advertise="true">
+		<uri>edu.ucsf.biodesign.datalogger</uri>
+		<description>Data Logger Service</description>
+		
+		<characteristic uuid="428f2f66-cfac-482d-a269-85ed6fcd2a39" id="xgatt_write">
+			<description>Write Stuff</description>
+			<value type="hex" length="2"></value>
+			<properties write="true"/>
+		</characteristic>
+		
+		<characteristic uuid="39c0f851-78ef-4e11-902a-850d8b069df7" id="xgatt_accel">
+			<description>Accelerometer Data</description>
+			<value type="hex" length="4"></value>
+			<properties read="true" notify="true"/>
+		</characteristic>
+		
+		<characteristic uuid="067fcf1a-b2bd-42f6-90c5-3e829a9f3d48" id="xgatt_cap">
+			<description>Cap Data</description>
+			<value type="hex" length="2"></value>
+			<properties read="true" notify="true"/>
+		</characteristic>
+		
+		
+	</service>
+	
+</configuration>
