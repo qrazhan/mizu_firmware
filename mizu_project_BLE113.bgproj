@@ -4,6 +4,6 @@
     <gatt in="gatt.xml" />
     <hardware in="hardware.xml" /> 
 	<config in="config.xml" />
-	<script in="flipper.bgs" />
-    <image out="flipper_out.hex" />
+	<script in="mizu.bgs" />
+    <image out="mizu_out.hex" />
 </project>
