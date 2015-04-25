@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <project>
-	<device type="ble112" />
+	<device type="ble113" memory="256"/>
     <gatt in="gatt.xml" />
     <hardware in="hardware.xml" /> 
 	<config in="config.xml" />

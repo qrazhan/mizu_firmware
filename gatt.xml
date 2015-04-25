@@ -8,7 +8,7 @@
 	  <!-- 2A00: org.bluetooth.characteristic.gap.device_name -->
       <characteristic uuid="2a00" id="c_device_name">
 		<description>Device Name</description>
-		<value>FUCKING FLIPPER</value>
+		<value>Mizu</value>
         <properties read="true" const="true" />
       </characteristic>
 
