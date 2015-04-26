@@ -8,21 +8,22 @@ event system_boot(major,minor,patch,build,ll_version,protocol,hw)
    call gap_set_adv_parameters(32,48,7)
    # Start advertisement (generic discoverable, undirected connectable)
    call gap_set_mode(2,2)
-   call hardware_io_port_config_direction(1, $2)(result)
-   call hardware_io_port_write(1, $2, $0)(result)
+   call hardware_io_port_config_direction(1, $1)(result)
+   call hardware_io_port_write(1, $1, $0)(result)
+   call hardware_spi_config(0, 1, 1, 1, 10, 216)
 end
 # Connection event listener
 event connection_status(connection, flags, address, address_type, conn_interval, timeout, latency, bonding)
    # Device is connected.
    connected = 1
    #                           port, mask, data
-   call hardware_io_port_write(1, $2, $2)(result)
+   call hardware_io_port_write(1, $1, $1)(result)
 end
 
 # Disconnection event
 event connection_disconnected(handle, res)
    #connection disconnected, continue advertising
    connected = 0
-   call hardware_io_port_write(1, $2, $0)(result)
+   call hardware_io_port_write(1, $1, $0)(result)
    call gap_set_mode(gap_general_discoverable,gap_undirected_connectable)
 end
