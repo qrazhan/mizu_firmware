@@ -58,9 +58,16 @@
 			<properties write="true"/>
 		</characteristic>
 		
+		<characteristic uuid="f899395e-ec6c-11e4-90ec-1681e6b88ec1" id="xgatt_control">
+			<description>Power Control Register</description>
+			<value type="hex" length="1"></value>
+			<properties read="true"/>
+		</characteristic>
+		
+		
 		<characteristic uuid="39c0f851-78ef-4e11-902a-850d8b069df7" id="xgatt_accel">
 			<description>Accelerometer Data</description>
-			<value type="hex" length="4"></value>
+			<value type="hex" length="2"></value>
 			<properties read="true" notify="true"/>
 		</characteristic>
 		

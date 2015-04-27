@@ -1,28 +1,118 @@
 dim connected
 dim result
+dim channel
+dim data_len
+dim data_data
+dim register_value
+dim power_control_reg
+
+dim x(2)
+dim y(2)
+dim z(2)
+
+procedure spi_write_one_register(reg_address, reg_value)
+	call hardware_io_port_write(1, $4, $0)
+	call hardware_spi_transfer(0, 1, $0A)(result, channel, data_len, data_data)	
+	call hardware_spi_transfer(0, 1, reg_address)(result, channel, data_len, data_data)
+	call hardware_spi_transfer(0, 1, reg_value)(result, channel, data_len, data_data)
+	call hardware_io_port_write(1, $4, $4)
+end
+
 # System start/boot listener
 event system_boot(major,minor,patch,build,ll_version,protocol,hw)
-   # Device is not connected yet
-   connected = 0
-   # Set advertisement interval to 20 to 30ms. Use all advertisement channels
-   call gap_set_adv_parameters(32,48,7)
-   # Start advertisement (generic discoverable, undirected connectable)
-   call gap_set_mode(2,2)
-   call hardware_io_port_config_direction(1, $1)(result)
-   call hardware_io_port_write(1, $2, $0)(result)
+	# Device is not connected yet
+    connected = 0
+    # Set advertisement interval to 20 to 30ms. Use all advertisement channels
+    call gap_set_adv_parameters(32,48,7)
+    # Start advertisement (generic discoverable, undirected connectable)
+    call gap_set_mode(2,2)
+   
+    #0b101101
+    call hardware_io_port_config_direction(1, $2D)(result)
+    call hardware_io_port_write(1, $1, $0)(result)
+    
+    #Soft Timer Configuration
+    # 5 second interval (xtal freq = 32768), handle=0, and repeating
+    call hardware_set_soft_timer(32768,0,0) # 1 second interval
+    #call hardware_set_soft_timer(98304,0,0) # 3 second interval
+    #call hardware_set_soft_timer(163840,0,0) # 5 second interval
+    #call hardware_set_soft_timer(1966080,0,0) # 60 second interval
+    #call hardware_set_soft_timer(7372800,0,0) # 225 second (3.75 min) interval
+    
+    # SPI Configuration: Channel, Polarity, Phase, Bit Order, BaudE, BaudM
+    call hardware_spi_config(0, 1, 1, 1, 11, 216)
+	call hardware_io_port_write(1, $2C, $4)
+    
+    #soft reset
+    call spi_write_one_register($1F, $52)
+	
+	#read power control register
+	call hardware_io_port_write(1, $4, $0)
+	call hardware_spi_transfer(0, 1, $0B)(result, channel, data_len, data_data)	
+	call hardware_spi_transfer(0, 1, $2D)(result, channel, data_len, data_data)	
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)	
+	call hardware_io_port_write(1, $4, $4)
+
+	power_control_reg = data_data
+	#write to enable measurement mode
+	call spi_write_one_register($2D, (power_control_reg | $02))
+	
+	#10ms dump...
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
+	call attributes_write(xgatt_control, 0, 1, data_data)
 end
+
 # Connection event listener
 event connection_status(connection, flags, address, address_type, conn_interval, timeout, latency, bonding)
    # Device is connected.
    connected = 1
    #                           port, mask, data
-   call hardware_io_port_write(1, $1, $1)(result)
+   
 end
 
 # Disconnection event
 event connection_disconnected(handle, res)
    #connection disconnected, continue advertising
    connected = 0
-   call hardware_io_port_write(1, $2, $0)(result)
+   call hardware_io_port_write(1, $1, $0)(result)
    call gap_set_mode(gap_general_discoverable,gap_undirected_connectable)
 end
+
+# Handle client interaction w/ device (triggered by client writing to GATT)
+event attributes_value(connection, reason, handle, offset, value_length, value_data)
+	#Client wrote to xgatt_accel attribute 
+end
+
+# Handle timer callbacks
+event hardware_soft_timer(handle)
+	#SS pin write to low to initiate
+	call hardware_io_port_write(1, $5, $1)
+
+	#Read instruction and begin at X register
+	call hardware_spi_transfer(0, 1, $0B)(result, channel, data_len, data_data)	
+	call hardware_spi_transfer(0, 1, $0E)(result, channel, data_len, data_data)
+	
+	#X,Y,Z Data
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
+	x(0) = data_data
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
+	x(1) = data_data
+
+
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
+	y(0) = data_data
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
+	y(1) = data_data
+
+	
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
+	z(0) = data_data
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
+	z(1) = data_data
+	
+	#set SS pin to HIGH
+	call hardware_io_port_write(1, $5, $4)
+	
+	call attributes_write(xgatt_accel, 0, 2, z(0:2))
+end
+

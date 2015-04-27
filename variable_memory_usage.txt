@@ -1,4 +1,4 @@
-8
+34
 0:0	GAP_AD_FLAG_BREDR_NOT_SUPPORTED
 0:0	GAP_AD_FLAG_GENERAL_DISCOVERABLE
 0:0	GAP_AD_FLAG_LIMITED_DISCOVERABLE
@@ -83,6 +83,15 @@
 0:0	system_endpoint_usb
 0:0	xgatt_accel
 0:0	xgatt_cap
+0:0	xgatt_control
 0:0	xgatt_write
 0:4	connected
 4:4	result
+8:4	channel
+12:4	data_len
+16:4	data_data
+20:4	register_value
+24:4	power_control_reg
+28:2	x
+30:2	y
+32:2	z
