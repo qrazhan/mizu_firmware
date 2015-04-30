@@ -1,4 +1,9 @@
-dim connected
+#Mizu Firmware Application
+#Prashan D. and Maruchi K.
+#Innovative Design Product Tier
+
+dim connected       # BLE connection status
+dim advertising     # advertising status (0=off, 1=on)
 dim result
 dim channel
 dim data_len
@@ -9,9 +14,7 @@ dim cdc_write_value(2)
 dim written
 dim i
 
-dim x(2)
-dim y(2)
-dim z(2)
+dim accel(6)
 
 procedure spi_write_one_register(reg_address, reg_value)
 	call hardware_io_port_write(1, $4, $0)
@@ -25,14 +28,22 @@ end
 event system_boot(major,minor,patch,build,ll_version,protocol,hw)
 	# Device is not connected yet
     connected = 0
+	
+    # initialize advertising status as ON (since we're about to turn it on)
+    advertising = 1
+	
     # Set advertisement interval to 20 to 30ms. Use all advertisement channels
     call gap_set_adv_parameters(32,48,7)
+	
     # Start advertisement (generic discoverable, undirected connectable)
     call gap_set_mode(2,2)
    
-    #0b101101
+    #IO Directions for port 1: 0b101101
     call hardware_io_port_config_direction(1, $2D)(result)
     call hardware_io_port_write(1, $1, $0)(result)
+	
+	#Enable interrupts on port 0, pin 6 and pin 7, rising edge
+	call hardware_io_port_config_irq(0, $C0, 0)
     
     #Soft Timer Configuration
     # 5 second interval (xtal freq = 32768), handle=0, and repeating
@@ -46,8 +57,35 @@ event system_boot(major,minor,patch,build,ll_version,protocol,hw)
     call hardware_spi_config(0, 1, 1, 1, 11, 216)
 	call hardware_io_port_write(1, $2C, $4)
     
-    #soft reset
+    #soft reset for accelerometer
     call spi_write_one_register($1F, $52)
+	
+	#LED On: Beginning setup for accelerometer
+	call hardware_io_port_write(1, $1, $1)
+	
+	#.5ms dump
+	i = 0
+	while i < 200
+		i = i + 1
+	end while
+	
+	#Set activity threshold to 0xFA (250mg)
+	call spi_write_one_register($20, $FA)
+	call spi_write_one_register($21, $00)
+	
+	#Set inactivity threshold to 0x96 (150mg)
+	call spi_write_one_register($23, $96)
+	call spi_write_one_register($24, $00)
+	
+	#Set inactive timer to 0x1E (30) samples
+	call spi_write_one_register($25, $1E)
+	call spi_write_one_register($27, $3F)
+	
+	#Map the AWAKE bit to INT2
+	call spi_write_one_register($2B, $40)
+	
+	#Map the INAWAKE bit to INT1
+	call spi_write_one_register($2A, $20)
 	
 	#read power control register
 	call hardware_io_port_write(1, $4, $0)
@@ -57,10 +95,12 @@ event system_boot(major,minor,patch,build,ll_version,protocol,hw)
 	call hardware_io_port_write(1, $4, $4)
 
 	power_control_reg = data_data
+	#write to enable wakeup mode
+	call spi_write_one_register($2D, (power_control_reg | $0A))
 	#write to enable measurement mode
-	call spi_write_one_register($2D, (power_control_reg | $02))
-	
-	#10ms dump...
+	#call spi_write_one_register($2D, (power_control_reg | $02))
+		
+	#10ms dump... (NEED THIS FOR ACCELEROMETER)
 	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
 	call attributes_write(xgatt_control, 0, 1, data_data)
 	
@@ -92,14 +132,15 @@ event system_boot(major,minor,patch,build,ll_version,protocol,hw)
 	cdc_write_value(0) = $0A #Config reg address
 	cdc_write_value(1) = $01 | (2 << 3) #Continuous mode 
 	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
+	
+	#Led OFF: Finished Setup
+	call hardware_io_port_write(1, $1, $0)
 end
 
 # Connection event listener
 event connection_status(connection, flags, address, address_type, conn_interval, timeout, latency, bonding)
    # Device is connected.
    connected = 1
-   #                           port, mask, data
-   
 end
 
 # Disconnection event
@@ -112,45 +153,56 @@ end
 
 # Handle client interaction w/ device (triggered by client writing to GATT)
 event attributes_value(connection, reason, handle, offset, value_length, value_data)
-	#Client wrote to xgatt_accel attribute 
 end
 
 # Handle timer callbacks
 event hardware_soft_timer(handle)
-	#SS pin write to low to initiate
+	#Let accelerometer know it's being talked to
 	call hardware_io_port_write(1, $5, $1)
 
 	#Read instruction and begin at X register
 	call hardware_spi_transfer(0, 1, $0B)(result, channel, data_len, data_data)	
 	call hardware_spi_transfer(0, 1, $0E)(result, channel, data_len, data_data)
 	
-	#X,Y,Z Data
+	#X, Y, Z data
 	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
-	x(0) = data_data
+	accel(0) = data_data
 	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
-	x(1) = data_data
-
-
+	accel(1) = data_data
 	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
-	y(0) = data_data
+	accel(2) = data_data
 	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
-	y(1) = data_data
-
-	
+	accel(3) = data_data
 	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
-	z(0) = data_data
+	accel(4) = data_data
 	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
-	z(1) = data_data
-	
-	#set SS pin to HIGH
+	accel(5) = data_data
+		
+	#Stop talking to the accelerometer
 	call hardware_io_port_write(1, $5, $4)
-	
-	call attributes_write(xgatt_accel, 0, 2, z(0:2))
+
+	#Write acceleration to characteristic
+	call attributes_write(xgatt_accel, 0, 6, accel(0:6))
 	
 	#write to CDC and move address pointer to 0x01 (the first data reg)
-	call hardware_i2c_write($90, 0, 1, "\x0B")(written)
+	call hardware_i2c_write($90, 0, 1, $0B)(written)
 	#read the three data registers
-	call hardware_i2c_read($90, 1, 1)(result, data_len, data_data)
+	call hardware_i2c_read($90, 1, 3)(result, data_len, data_data)
 	call attributes_write(xgatt_cap, 0, data_len, data_data)
+
+end
+
+event hardware_io_port_status(delta, port, irq, state)
+	if port = 0 then
+		if (irq & $40) = $40 then
+			#ACTIVE
+			call attributes_write(xgatt_int, 0, 1, $1)
+		end if
+		
+		if (irq & $80) = $80 then
+			#INACTIVE
+			call attributes_write(xgatt_int, 0, 1, $2)
+		end if
+	end if
 end
 

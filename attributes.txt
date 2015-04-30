@@ -5,5 +5,9 @@ c_software_revision 13
 c_manufacturer_name 16
 xgatt_write 20
 xgatt_control 23
-xgatt_accel 26
-xgatt_cap 30
+xgatt_int 26
+xgatt_accel 30
+xgatt_x 34
+xgatt_y 38
+xgatt_z 42
+xgatt_cap 46
