@@ -4,12 +4,12 @@
     <sleeposc enable="true" ppm="30" />
 	<script enable="true" />
 	<slow_clock enable="true" />
-    <txpower power="15" bias="5" />
+    <txpower power="5" bias="5" />
 	<usb enable="false" />
 	<usart channel="0" mode="spi_master" alternate="2" polarity="positive" phase="1" endianness="msb" baud="115200" endpoint="none"/>
 	
 	<port index="0" tristatemask="0x00" pull="down" />
 	<port index="1" tristatemask="0x00" pull="up" />
-	<port index="2" tristatemask="0x00" pull="down" />
+	<port index="2" tristatemask="0x00" pull="up" />
 	
 </hardware>

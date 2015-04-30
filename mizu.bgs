@@ -5,6 +5,9 @@ dim data_len
 dim data_data
 dim register_value
 dim power_control_reg
+dim cdc_write_value(2)
+dim written
+dim i
 
 dim x(2)
 dim y(2)
@@ -60,6 +63,35 @@ event system_boot(major,minor,patch,build,ll_version,protocol,hw)
 	#10ms dump...
 	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
 	call attributes_write(xgatt_control, 0, 1, data_data)
+	
+	##### CDC initialization stuffs #####
+
+	call hardware_i2c_write($90, 1, 1, $BF)(written) #reset command
+	
+	i = 0
+	while i < 10000
+		i = i + 1
+	end while
+	
+	#call hardware_i2c_write($90, 0, 1, $00)(written)
+	#call hardware_i2c_read($90, 1, 1)(result, data_len, data_data)
+	#call attributes_write(xgatt_control, 0, 1, data_data)
+	
+	cdc_write_value(0) = $07 #Cap Setup reg address
+	cdc_write_value(1) = $80 #Setup Cap for continuous mode
+	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
+
+	cdc_write_value(0) = $09 #EXC reg address
+	cdc_write_value(1) = $08 #Set EXC A
+	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
+	
+	cdc_write_value(0) = $0B #CAPDAC A reg address
+	cdc_write_value(1) = $FF #Set full input range
+	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
+
+	cdc_write_value(0) = $0A #Config reg address
+	cdc_write_value(1) = $01 | (2 << 3) #Continuous mode 
+	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
 end
 
 # Connection event listener
@@ -114,5 +146,11 @@ event hardware_soft_timer(handle)
 	call hardware_io_port_write(1, $5, $4)
 	
 	call attributes_write(xgatt_accel, 0, 2, z(0:2))
+	
+	#write to CDC and move address pointer to 0x01 (the first data reg)
+	call hardware_i2c_write($90, 0, 1, "\x0B")(written)
+	#read the three data registers
+	call hardware_i2c_read($90, 1, 1)(result, data_len, data_data)
+	call attributes_write(xgatt_cap, 0, data_len, data_data)
 end
 
