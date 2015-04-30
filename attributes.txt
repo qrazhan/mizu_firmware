@@ -7,7 +7,4 @@ xgatt_write 20
 xgatt_control 23
 xgatt_int 26
 xgatt_accel 30
-xgatt_x 34
-xgatt_y 38
-xgatt_z 42
-xgatt_cap 46
+xgatt_cap 34

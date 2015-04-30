@@ -8,7 +8,7 @@
 	  <!-- 2A00: org.bluetooth.characteristic.gap.device_name -->
       <characteristic uuid="2a00" id="c_device_name">
 		<description>Device Name</description>
-		<value>Mizu-Interrupt</value>
+		<value>Mizu</value>
         <properties read="true" const="true" />
       </characteristic>
 
@@ -58,19 +58,19 @@
 			<properties write="true"/>
 		</characteristic>
 		
-		<characteristic uuid="BEEF" id="xgatt_control">
+		<characteristic uuid="BEEF7cbb-27bb-4302-a31b-b831a68f5d13" id="xgatt_control">
 			<description>Power Control Register Status</description>
 			<value type="hex" length="1"></value>
 			<properties read="true"/>
 		</characteristic>
 		
-		<characteristic uuid="DEAF" id="xgatt_int">
+		<characteristic uuid="DEAFfe84-3b38-4d7c-969f-8a835bfde93e" id="xgatt_int">
 			<description>Interrupt Status</description>
 			<value type="hex" length="1"></value>
 			<properties read="true" notify="true"/>
 		</characteristic>
 		
-		<characteristic uuid="ACC1" id="xgatt_accel">
+		<characteristic uuid="ACC119df-eb7a-49d0-92f9-b6b97846a860" id="xgatt_accel">
 			<description>Accelerometer Data</description>
 			<value type="hex" length="6"></value>
 			<properties read="true" notify="true"/>

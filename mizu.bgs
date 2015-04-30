@@ -24,6 +24,89 @@ procedure spi_write_one_register(reg_address, reg_value)
 	call hardware_io_port_write(1, $4, $4)
 end
 
+procedure delay(delay_cycles)
+	i = 0
+	while i < delay_cycles
+		i = i + 1
+	end while
+end
+
+procedure cdc_init()
+	##### CDC initialization stuffs #####
+
+	call hardware_i2c_write($90, 1, 1, $BF)(written) #reset command
+	
+	# .5ms dump
+	call delay(200)
+	
+	#call hardware_i2c_write($90, 0, 1, $00)(written)
+	#call hardware_i2c_read($90, 1, 1)(result, data_len, data_data)
+	#call attributes_write(xgatt_control, 0, 1, data_data)
+	
+	cdc_write_value(0) = $07 #Cap Setup reg address
+	cdc_write_value(1) = $80 #Setup Cap for continuous mode
+	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
+
+	cdc_write_value(0) = $09 #EXC reg address
+	cdc_write_value(1) = $08 #Set EXC A
+	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
+	
+	cdc_write_value(0) = $0B #CAPDAC A reg address
+	cdc_write_value(1) = $FF #Set full input range
+	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
+
+	cdc_write_value(0) = $0A #Config reg address
+	cdc_write_value(1) = $01 | (2 << 3) #Continuous mode 
+	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
+end
+
+procedure accel_init()
+    #soft reset for accelerometer
+    call spi_write_one_register($1F, $52)
+	
+	#LED On: Beginning setup for accelerometer
+	call hardware_io_port_write(1, $1, $1)
+	
+	#.5ms dump
+	call delay(200)
+	
+	#Set activity threshold to 0xFA (250mg)
+	call spi_write_one_register($20, $FA)
+	call spi_write_one_register($21, $00)
+	
+	#Set inactivity threshold to 0x96 (150mg)
+	call spi_write_one_register($23, $96)
+	call spi_write_one_register($24, $00)
+	
+	#Set inactive timer to 0x1E (30) samples
+	call spi_write_one_register($25, $1E)
+	call spi_write_one_register($27, $3F)
+	
+	#Map the AWAKE bit to INT2
+	call spi_write_one_register($2B, $40)
+	
+	#Map the INAWAKE bit to INT1
+	call spi_write_one_register($2A, $20)
+	
+	#read power control register
+	call hardware_io_port_write(1, $4, $0)
+	call hardware_spi_transfer(0, 1, $0B)(result, channel, data_len, data_data)	
+	call hardware_spi_transfer(0, 1, $2D)(result, channel, data_len, data_data)	
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)	
+	call hardware_io_port_write(1, $4, $4)
+
+	power_control_reg = data_data
+	#write to enable wakeup mode
+	call spi_write_one_register($2D, (power_control_reg | $0A))
+	#write to enable measurement mode
+	#call spi_write_one_register($2D, (power_control_reg | $02))
+		
+	#need this call for some reason
+	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
+	
+	call attributes_write(xgatt_control, 0, 1, data_data)
+end
+
 # System start/boot listener
 event system_boot(major,minor,patch,build,ll_version,protocol,hw)
 	# Device is not connected yet
@@ -57,81 +140,8 @@ event system_boot(major,minor,patch,build,ll_version,protocol,hw)
     call hardware_spi_config(0, 1, 1, 1, 11, 216)
 	call hardware_io_port_write(1, $2C, $4)
     
-    #soft reset for accelerometer
-    call spi_write_one_register($1F, $52)
-	
-	#LED On: Beginning setup for accelerometer
-	call hardware_io_port_write(1, $1, $1)
-	
-	#.5ms dump
-	i = 0
-	while i < 200
-		i = i + 1
-	end while
-	
-	#Set activity threshold to 0xFA (250mg)
-	call spi_write_one_register($20, $FA)
-	call spi_write_one_register($21, $00)
-	
-	#Set inactivity threshold to 0x96 (150mg)
-	call spi_write_one_register($23, $96)
-	call spi_write_one_register($24, $00)
-	
-	#Set inactive timer to 0x1E (30) samples
-	call spi_write_one_register($25, $1E)
-	call spi_write_one_register($27, $3F)
-	
-	#Map the AWAKE bit to INT2
-	call spi_write_one_register($2B, $40)
-	
-	#Map the INAWAKE bit to INT1
-	call spi_write_one_register($2A, $20)
-	
-	#read power control register
-	call hardware_io_port_write(1, $4, $0)
-	call hardware_spi_transfer(0, 1, $0B)(result, channel, data_len, data_data)	
-	call hardware_spi_transfer(0, 1, $2D)(result, channel, data_len, data_data)	
-	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)	
-	call hardware_io_port_write(1, $4, $4)
-
-	power_control_reg = data_data
-	#write to enable wakeup mode
-	call spi_write_one_register($2D, (power_control_reg | $0A))
-	#write to enable measurement mode
-	#call spi_write_one_register($2D, (power_control_reg | $02))
-		
-	#10ms dump... (NEED THIS FOR ACCELEROMETER)
-	call hardware_spi_transfer(0, 1, $00)(result, channel, data_len, data_data)
-	call attributes_write(xgatt_control, 0, 1, data_data)
-	
-	##### CDC initialization stuffs #####
-
-	call hardware_i2c_write($90, 1, 1, $BF)(written) #reset command
-	
-	i = 0
-	while i < 10000
-		i = i + 1
-	end while
-	
-	#call hardware_i2c_write($90, 0, 1, $00)(written)
-	#call hardware_i2c_read($90, 1, 1)(result, data_len, data_data)
-	#call attributes_write(xgatt_control, 0, 1, data_data)
-	
-	cdc_write_value(0) = $07 #Cap Setup reg address
-	cdc_write_value(1) = $80 #Setup Cap for continuous mode
-	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
-
-	cdc_write_value(0) = $09 #EXC reg address
-	cdc_write_value(1) = $08 #Set EXC A
-	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
-	
-	cdc_write_value(0) = $0B #CAPDAC A reg address
-	cdc_write_value(1) = $FF #Set full input range
-	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
-
-	cdc_write_value(0) = $0A #Config reg address
-	cdc_write_value(1) = $01 | (2 << 3) #Continuous mode 
-	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
+	call accel_init() #initialize accelerometer
+	call cdc_init()	  #initialize capacitance-to-digital converter
 	
 	#Led OFF: Finished Setup
 	call hardware_io_port_write(1, $1, $0)
@@ -155,8 +165,7 @@ end
 event attributes_value(connection, reason, handle, offset, value_length, value_data)
 end
 
-# Handle timer callbacks
-event hardware_soft_timer(handle)
+procedure read_accel()
 	#Let accelerometer know it's being talked to
 	call hardware_io_port_write(1, $5, $1)
 
@@ -183,13 +192,20 @@ event hardware_soft_timer(handle)
 
 	#Write acceleration to characteristic
 	call attributes_write(xgatt_accel, 0, 6, accel(0:6))
-	
+end
+
+procedure read_cdc()
 	#write to CDC and move address pointer to 0x01 (the first data reg)
 	call hardware_i2c_write($90, 0, 1, $0B)(written)
 	#read the three data registers
 	call hardware_i2c_read($90, 1, 3)(result, data_len, data_data)
 	call attributes_write(xgatt_cap, 0, data_len, data_data)
+end
 
+# Handle timer callbacks
+event hardware_soft_timer(handle)
+	call read_accel()
+	call read_cdc()
 end
 
 event hardware_io_port_status(delta, port, irq, state)
