@@ -1,15 +1,26 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 
 <hardware>
+    <!-- enable sleep oscillator setting for low-power mode, using "30" (appropriate for dev kit) -->
     <sleeposc enable="true" ppm="30" />
-	<script enable="true" />
-	<slow_clock enable="true" />
+    
+    <!-- disable USB interface to save power, since we don't need it -->
+    <!-- DO NOT FLASH THIS ONTO A BLED112 WITH USB DISABLED. YOU WILL BRICK IT. -->
+    <usb enable="false" />
+	
+	<!-- use default maximum power (+3dBm) and power amplifier bias (always 5) -->
     <txpower power="15" bias="5" />
-	<usb enable="false" />
+	
+    <!-- we're using BGScript, so make sure this is enabled -->
+    <script enable="true" />
+
+    <!-- do not enable slow_clock if you need reliable UART output at fast speeds. It will result in baud rate data errors. -->
+    <slow_clock enable="false" />
+
+	<!--Communication between accelerometer over SPI -->
 	<usart channel="0" mode="spi_master" alternate="2" polarity="positive" phase="1" endianness="msb" baud="115200" endpoint="none"/>
 	
 	<port index="0" tristatemask="0x00" pull="down" />
 	<port index="1" tristatemask="0x00" pull="up" />
 	<port index="2" tristatemask="0x00" pull="down" />
-	
 </hardware>
