@@ -76,9 +76,9 @@
 			<properties read="true" notify="true"/>
 		</characteristic>
 		
-		<characteristic uuid="067fcf1a-b2bd-42f6-90c5-3e829a9f3d48" id="xgatt_cap">
+		<characteristic uuid="CA9fcf1a-b2bd-42f6-90c5-3e829a9f3d48" id="xgatt_cap">
 			<description>Cap Data</description>
-			<value type="hex" length="2"></value>
+			<value type="hex" length="3"></value>
 			<properties read="true" notify="true"/>
 		</characteristic>
 	</service>
