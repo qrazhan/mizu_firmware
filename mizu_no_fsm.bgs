@@ -13,8 +13,6 @@ dim power_control_reg
 dim cdc_write_value(2)
 dim written
 dim i
-dim cdc_val
-dim bias
 
 dim accel(6)
 
@@ -54,7 +52,7 @@ procedure cdc_init()
 	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
 	
 	cdc_write_value(0) = $0B #CAPDAC A reg address
-	cdc_write_value(1) = $00 #Set full input range ($7F)
+	cdc_write_value(1) = $7F #Set full input range ($7F)
 	call hardware_i2c_write($90, 1, 2, cdc_write_value(0:2))(written)
 
 	cdc_write_value(0) = $0A #Config reg address
@@ -116,6 +114,9 @@ event system_boot(major,minor,patch,build,ll_version,protocol,hw)
 	
     # Set advertisement interval to 20 to 30ms. Use all advertisement channels
     call gap_set_adv_parameters(32,48,7)
+	
+    # Start advertisement (generic discoverable, undirected connectable)
+    call gap_set_mode(2,2)
    
     #IO Directions for port 1: 0b101101
     call hardware_io_port_config_direction(1, $2D)(result)
@@ -126,7 +127,7 @@ event system_boot(major,minor,patch,build,ll_version,protocol,hw)
     
     #Soft Timer Configuration
     # 5 second interval (xtal freq = 32768), handle=0, and repeating
-    call hardware_set_soft_timer(32768,0,1) # 1 second interval
+    call hardware_set_soft_timer(32768,0,0) # 1 second interval
     #call hardware_set_soft_timer(98304,0,0) # 3 second interval
     #call hardware_set_soft_timer(163840,0,0) # 5 second interval
     #call hardware_set_soft_timer(1966080,0,0) # 60 second interval
@@ -144,19 +145,12 @@ event system_boot(major,minor,patch,build,ll_version,protocol,hw)
 	
 	#Led OFF: Finished Setup
 	call hardware_io_port_write(1, $1, $0)
-	
-	read_accel()
-	bias = (accel(5) << 2) + accel(4) - 1000
-	call read_and_advertise(1)
 end
 
 # Connection event listener
 event connection_status(connection, flags, address, address_type, conn_interval, timeout, latency, bonding)
    # Device is connected.
    connected = 1
-   
-   #Turn off advertising if connected
-   call gap_set_mode(0, 2)
 end
 
 # Disconnection event
@@ -197,7 +191,7 @@ procedure read_accel()
 	call hardware_io_port_write(1, $5, $4)
 
 	#Write acceleration to characteristic
-	call attributes_write(xgatt_accel, 0, 6, accel(0:6))
+	call attributes_write(xgatt_accel, 0, 2, accel(4:6))
 end
 
 procedure read_cdc()
@@ -205,56 +199,25 @@ procedure read_cdc()
 	call hardware_i2c_write($90, 0, 1, $01)(written)
 	#read the three data registers
 	call hardware_i2c_read($90, 1, 3)(result, data_len, data_data)
-	cdc_val = data_data
 	call attributes_write(xgatt_cap, 0, data_len, data_data)
-end
-
-procedure read_and_advertise(read)
-	if read = 1 then
-		read_cdc()
-	else
-		call attributes_write(xgatt_cap, 0, 3, cdc_val)
-	end if
-	call gap_set_mode(2,2)
-	advertising = 1
-	call hardware_set_soft_timer(7372800, 1, 1) # 3.75 timer cause we can't do 5 min i think
 end
 
 # Handle timer callbacks
 event hardware_soft_timer(handle)
-	#Advertising : ON, Connected : ON
-	if handle = 0 then
-		call read_and_advertise(0)	#advertise the last cdc reading (don't read a new one)
-	end if
-	
-	#Advertising: OFF, Connected: ON, Guard: 3.75 Minute; Action: Nothing
-	if handle = 1 then
-		call gap_set_mode(0, 2)
-		advertising = 0
-		
-		#Should be an hour
-		call hardware_set_soft_timer(7372800,0,1) # 3.75 sleep timer
-	end if
+	call read_accel()
+	call read_cdc()
 end
 
 event hardware_io_port_status(delta, port, irq, state)
 	if port = 0 then
 		if (irq & $40) = $40 then
-			#ACTIVE, Advertising: OFF
+			#ACTIVE
 			call attributes_write(xgatt_int, 0, 1, $1)
-			if advertising = 1 then 
-				call gap_set_mode(0, 2)
-				advertising = 0
-			end if 
 		end if
 		
 		if (irq & $80) = $80 then
-			#INACTIVE, Advertising: ON
+			#INACTIVE
 			call attributes_write(xgatt_int, 0, 1, $2)
-			call read_accel()
-			if (accel(5) << 2 + accel(4)) < (1200 + bias) then
-				call read_and_advertise(1)
-			end
 		end if
 	end if
 end

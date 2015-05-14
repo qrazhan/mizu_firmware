@@ -72,7 +72,7 @@
 		
 		<characteristic uuid="ACC119df-eb7a-49d0-92f9-b6b97846a860" id="xgatt_accel">
 			<description>Accelerometer Data</description>
-			<value type="hex" length="6"></value>
+			<value type="hex" length="2"></value>
 			<properties read="true" notify="true"/>
 		</characteristic>
 		
